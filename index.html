@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代辦事項管理</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        input, textarea, button, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            display: none;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .todo-list {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .todo-item {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>代辦事項管理</h2>
+        
+        <!-- 新增代辦事項 -->
+        <form id="todoForm">
+            <label for="studentId">學生 ID（預設為 41241222）：</label>
+            <input type="text" id="studentId" name="studentId" value="41241222" required>
+
+            <label for="task">代辦事項：</label>
+            <textarea id="task" name="task" rows="4" required></textarea>
+
+            <button type="submit">新增代辦事項</button>
+        </form>
+
+        <!-- 查看代辦事項 -->
+        <button id="getTodosButton">查看所有代辦事項</button>
+
+        <!-- 更新代辦事項 -->
+        <div id="updateTodoSection" style="margin-top: 20px;">
+            <h3>更新代辦事項</h3>
+            <label for="updateId">待辦事項 ID：</label>
+            <input type="number" id="updateId" name="updateId" required>
+
+            <label for="updateTask">更新內容：</label>
+            <textarea id="updateTask" name="updateTask" rows="4" required></textarea>
+
+            <label for="updateCompleted">是否完成：</label>
+            <select id="updateCompleted" name="updateCompleted" required>
+                <option value="true">已完成</option>
+                <option value="false">未完成</option>
+            </select>
+
+            <button id="updateTodoButton">更新代辦事項</button>
+        </div>
+
+        <!-- 刪除代辦事項 -->
+        <div id="deleteTodoSection" style="margin-top: 20px;">
+            <h3>刪除代辦事項</h3>
+            <label for="deleteId">待辦事項 ID：</label>
+            <input type="number" id="deleteId" name="deleteId" required>
+
+            <button id="deleteTodoButton">刪除代辦事項</button>
+        </div>
+
+        <!-- 訊息提示 -->
+        <div id="successMessage" class="message">操作成功！</div>
+        <div id="errorMessage" class="message error">操作失敗，請稍後再試。</div>
+
+        <!-- 代辦事項列表 -->
+        <div id="todoList" class="todo-list" style="display: none;">
+            <h3>代辦事項列表</h3>
+            <div id="todosContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // 元素選取
+        const form = document.getElementById('todoForm');
+        const studentIdInput = document.getElementById('studentId');
+        const taskInput = document.getElementById('task');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        const getTodosButton = document.getElementById('getTodosButton');
+        const todoList = document.getElementById('todoList');
+        const todosContainer = document.getElementById('todosContainer');
+        const updateTodoButton = document.getElementById('updateTodoButton');
+        const updateIdInput = document.getElementById('updateId');
+        const updateTaskInput = document.getElementById('updateTask');
+        const updateCompletedInput = document.getElementById('updateCompleted');
+        const deleteTodoButton = document.getElementById('deleteTodoButton');
+        const deleteIdInput = document.getElementById('deleteId');
+
+        // 新增代辦事項
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const studentId = studentIdInput.value;
+            const task = taskInput.value;
+
+            const requestData = { student_id: studentId, task: task };
+
+            fetch('https://nfutest.pythonanywhere.com/todos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(data => {
+                successMessage.style.display = 'block';
+                errorMessage.style.display = 'none';
+                form.reset();
+            })
+            .catch(() => {
+                successMessage.style.display = 'none';
+                errorMessage.style.display = 'block';
+            });
+        });
+
+        // 查看代辦事項
+        getTodosButton.addEventListener('click', function() {
+            const studentId = studentIdInput.value;
+
+            if (!studentId) {
+                alert('請先輸入學生 ID！');
+                return;
+            }
+
+            fetch(`https://nfutest.pythonanywhere.com/todos?student_id=${studentId}`)
+                .then(response => response.ok ? response.json() : Promise.reject())
+                .then(data => {
+                    todosContainer.innerHTML = '';
+                    const todos = data.todos;
+                    if (todos.length > 0) {
+                        todos.forEach(todo => {
+                            const todoItem = document.createElement('div');
+                            todoItem.className = 'todo-item';
+                            todoItem.textContent = `#${todo.id}: ${todo.task} - ${todo.completed ? '已完成' : '未完成'}`;
+                            todosContainer.appendChild(todoItem);
+                        });
+                        todoList.style.display = 'block';
+                    } else {
+                        todosContainer.innerHTML = '<p>目前沒有代辦事項。</p>';
+                        todoList.style.display = 'block';
+                    }
+                })
+                .catch(() => {
+                    successMessage.style.display = 'none';
+                    errorMessage.style.display = 'block';
+                });
+        });
+
+        // 更新代辦事項
+        updateTodoButton.addEventListener('click', function() {
+            const id = updateIdInput.value;
+            const studentId = studentIdInput.value;
+            const task = updateTaskInput.value;
+            const completed = updateCompletedInput.value === 'true';
+
+            const requestData = { student_id: studentId, task: task, completed: completed };
+
+            fetch(`https://nfutest.pythonanywhere.com/todos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(data => {
+                successMessage.style.display = 'block';
+                errorMessage.style.display = 'none';
+            })
+            .catch(() => {
+                successMessage.style.display = 'none';
+                errorMessage.style.display = 'block';
+            });
+        });
+
+        // 刪除代辦事項
+        deleteTodoButton.addEventListener('click', function() {
+            const id = deleteIdInput.value;
+            const studentId = studentIdInput.value;
+
+            const requestData = { student_id: studentId };
+
+            fetch(`https://nfutest.pythonanywhere.com/todos/${id}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.ok ? response.json() : Promise.reject())
+            .then(data => {
+                successMessage.style.display = 'block';
+                successMessage.textContent = '刪除成功！';
+                errorMessage.style.display = 'none';
+            })
+            .catch(() => {
+                successMessage.style.display = 'none';
+                errorMessage.style.display = 'block';
+            });
+        });
+    </script>
+
+</body>
+</html>
